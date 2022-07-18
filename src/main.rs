@@ -22,7 +22,14 @@ use webrtc::track::track_remote::TrackRemote;
 async fn main() -> Result<()> {
     console_subscriber::init();
 
+    let stdin = std::io::stdin();
+    let mut iterator = stdin.lock().lines();
+    println!("press enter to create Webrtc PCs A, B");    
+    let _ = iterator.next().unwrap().unwrap();
+
     {
+       
+
         // Everything below is the WebRTC-rs API! Thanks for using it ❤️.
 
         // Create a MediaEngine object to configure the supported codec
@@ -156,9 +163,8 @@ async fn main() -> Result<()> {
         ))
         .await;
 
-        let stdin = std::io::stdin();
-
-        let mut iterator = stdin.lock().lines();
+       
+      
         println!("press enter to close A, B PCs");
         let _ = iterator.next().unwrap().unwrap();
         a.close().await?;
