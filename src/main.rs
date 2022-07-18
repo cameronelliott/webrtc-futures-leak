@@ -24,12 +24,13 @@ async fn main() -> Result<()> {
 
     let stdin = std::io::stdin();
     let mut iterator = stdin.lock().lines();
-    println!("press enter to create Webrtc PCs A, B");    
+    println!("press enter to create Webrtc PCs A, B");
     let _ = iterator.next().unwrap().unwrap();
 
+    let a_weak;
+    let b_weak;
+    let a_strong;
     {
-       
-
         // Everything below is the WebRTC-rs API! Thanks for using it ❤️.
 
         // Create a MediaEngine object to configure the supported codec
@@ -65,6 +66,8 @@ async fn main() -> Result<()> {
         let a = Arc::new(api.new_peer_connection(config.clone()).await?);
         let b = Arc::new(api.new_peer_connection(config).await?);
 
+        a_strong = a.clone();
+
         a.on_peer_connection_state_change(Box::new(move |s: RTCPeerConnectionState| {
             println!("A Peer Connection State has changed: {}", s);
             Box::pin(async {})
@@ -78,8 +81,7 @@ async fn main() -> Result<()> {
         .await;
 
         // Allow us to receive 1 video track
-        a.add_transceiver_from_kind(RTPCodecType::Video, &[])
-            .await?;
+        a.add_transceiver_from_kind(RTPCodecType::Video, &[]).await?;
 
         let ofr = a.create_offer(None).await?;
 
@@ -107,14 +109,18 @@ async fn main() -> Result<()> {
 
         // Set a handler for when a new remote track starts, this handler copies inbound RTP packets,
         // replaces the SSRC and sends them back
-        let pc = Arc::downgrade(&a);
+        a_weak = Arc::downgrade(&a);
+        b_weak = Arc::downgrade(&b);
+
+        let xx = a_weak.clone();
+
         a.on_track(Box::new(
             move |track: Option<Arc<TrackRemote>>, _receiver: Option<Arc<RTCRtpReceiver>>| {
                 if let Some(track) = track {
                     // Send a PLI on an interval so that the publisher is pushing a keyframe every rtcpPLIInterval
                     // This is a temporary fix until we implement incoming RTCP events, then we would push a PLI only when a viewer requests it
                     let media_ssrc = track.ssrc();
-                    let pc2 = pc.clone();
+                    let pc2 = xx.clone();
                     tokio::spawn(async move {
                         let mut result = Result::<usize>::Ok(0);
                         while result.is_ok() {
@@ -163,16 +169,21 @@ async fn main() -> Result<()> {
         ))
         .await;
 
-       
-      
-        println!("press enter to close A, B PCs");
-        let _ = iterator.next().unwrap().unwrap();
-        a.close().await?;
-        b.close().await?;
+        // println!("press enter to close A, B PCs");
+        // let _ = iterator.next().unwrap().unwrap();
+        // a.close().await?;
+        // b.close().await?;
 
         println!("press to invoke Drop trait on A, B PCs");
         let _ = iterator.next().unwrap().unwrap();
     }
+
+    println!("a_weak nweak/{} nstrong/{}", a_weak.weak_count(), a_weak.strong_count());
+    println!("b_weak nweak/{} nstrong/{}", b_weak.weak_count(), b_weak.strong_count());
+    drop(a_strong);
+    println!("a_weak nweak/{} nstrong/{}", a_weak.weak_count(), a_weak.strong_count());
+    println!("b_weak nweak/{} nstrong/{}", b_weak.weak_count(), b_weak.strong_count());
+
     println!("Drop on PCs invoked, sleeping forever");
     sleep(Duration::MAX).await;
 
