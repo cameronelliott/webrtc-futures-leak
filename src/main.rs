@@ -169,10 +169,13 @@ async fn main() -> Result<()> {
         ))
         .await;
 
-        // println!("press enter to close A, B PCs");
-        // let _ = iterator.next().unwrap().unwrap();
-        // a.close().await?;
-        // b.close().await?;
+        let will_close = true;
+        if will_close {
+            println!("press enter to close A, B PCs");
+            let _ = iterator.next().unwrap().unwrap();
+            a.close().await?;
+            b.close().await?;
+        }
 
         println!("press to invoke Drop trait on A, B PCs");
         let _ = iterator.next().unwrap().unwrap();
